@@ -79,7 +79,7 @@ def RequestThread(idx,cmd, name):
         url=url.replace('PARAM_CMD',str(cmd))
         url=url.replace('PARAM_NAME',str(name))
         result = requests.get(url)
-        print url
+        # print url
         #  logging.debug(" %s -> %s" % (threading.current_thread(), result))
     except requests.ConnectionError, e:
         print "Request Failed", url
