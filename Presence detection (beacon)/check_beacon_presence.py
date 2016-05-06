@@ -1,18 +1,21 @@
-##################################################################################################################################################
-# domoticz_beacon_scanner.py
-# v1.0 - jmleglise
-# Beacon Scanner for Domoticz - BlueTooth Low Energy V4.0 
+#!/usr/bin/python
+#   File : check_beacon_presence.py
+#   Author: jmleglise
+#   Date: 06-May-2016
+#   Info: Beacon (BlueTooth Low Energy V4.0) detection and reports back to domoticz
+#   URL : https://github.com/jmleglise/mylittle-domoticz/edit/master/Presence%20detection%20%28beacon%29/check_beacon_presence.py
+#   Version : 1.0
+#
 # Feature : 
-# Check the presence of a list of beacon.
-# Update uservariables in Domoticz when the MACADRESS of your beacon is detected. 
-# Send "HOME" when a beacon is detected. And send "AWAY" when the beacons are not in range.
+# Check the presence of a list of beacon and update uservariables in Domoticz accordingly. 
+# When the MACADRESS of the beacons are detected, send "HOME". And send "AWAY" when the beacons are not in range.
 # The detection is very fast : around 4 secondes. And the absence is verified every 15 seconds by comparing the hour of the last presence.
 #
 # Ressources :
 # https://wiki.tizen.org/wiki/Bluetooth
-# Some  https://github.com/adamf/BLE/blob/master/ble-scanner.py
+# https://github.com/adamf/BLE/blob/master/ble-scanner.py
 #
-# Required : An uservariable in Domoticz of type String for each BLE Tag
+# Required in Domoticz : An uservariable of type String for each BLE Tag
 
 # Change your IP and Port here :
 URL_DOMOTICZ = 'http://192.168.0.20:8080/json.htm?type=command&param=updateuservariable&idx=PARAM_IDX&vname=PARAM_NAME&vtype=2&vvalue=PARAM_CMD'
@@ -20,8 +23,8 @@ URL_DOMOTICZ = 'http://192.168.0.20:8080/json.htm?type=command&param=updateuserv
 # Timeout is the elapsed time  without a detetion for switching the beacon AWAY. Ie :if your beacon emits every 3 to 8 seondes, a timeout of 15 secondes seems good.
 TAG_DATA = [  
 			["Tag_white","XX:Xx:XX:xx:xx:xx",15,0,8],
-			["Tag_Orange","fb:14:78:38:18:5e",15,0,6],
-			["Tag_Green","ff:ff:60:00:22:ae",15,0,7]
+			["Tag_Orange","xx:xx:78:38:xx:xx",15,0,6],
+			["Tag_Green","xx:ff:60:00:xx:xx",15,0,7]
 			]
 ################ Nothing to edit under this line #####################################################################################
 
