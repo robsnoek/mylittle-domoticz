@@ -13,14 +13,20 @@
 #
 # Ressources :
 # https://wiki.tizen.org/wiki/Bluetooth
-# https://github.com/adamf/BLE/blob/master/ble-scanner.py
+# https://storage.googleapis.com/google-code-archive-source/v2/code.google.com/pybluez/source-archive.zip  => pybluez\examples\advanced\inquiry-with-rssi.py
 #
 # Required in Domoticz : An uservariable of type String for each BLE Tag
-
+#
 # Change your IP and Port here :
 URL_DOMOTICZ = 'http://192.168.0.20:8080/json.htm?type=command&param=updateuservariable&idx=PARAM_IDX&vname=PARAM_NAME&vtype=2&vvalue=PARAM_CMD'
-# Configure your Beacon here : name (same as the uservariable in Domoticz), MAC ADDR, TimeOut in sec, 0 , idx of uservariable Domoticz
-# Timeout is the elapsed time  without a detetion for switching the beacon AWAY. Ie :if your beacon emits every 3 to 8 seondes, a timeout of 15 secondes seems good.
+#
+# Configure your Beacon here : 
+# [Name,MacAddress,Timeout,0,idx]
+# Name : same as the uservariable in Domoticz
+# Timeout is in secondes the elapsed time  without a detetion for switching the beacon AWAY. Ie :if your beacon emits every 3 to 8 seondes, a timeout of 15 secondes seems good.
+# 0 : used by the script (will keep the time of the last broadcast) 
+# idx of the uservariable in Domoticz for this beacon
+
 TAG_DATA = [  
 			["Tag_white","XX:Xx:XX:xx:xx:xx",15,0,8],
 			["Tag_Orange","xx:xx:78:38:xx:xx",15,0,6],
