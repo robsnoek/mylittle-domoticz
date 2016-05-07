@@ -6,6 +6,7 @@
 #   URL : https://github.com/jmleglise/mylittle-domoticz/edit/master/Presence%20detection%20%28beacon%29/check_beacon_presence.py
 #   Version : 1.0
 #   Version : 1.1   Log + Mac Adress case insensitive 
+#   Version : 1.2   Fix initial state for Tag Away
 #
 # Feature : 
 # Check the presence of a list of beacon and update uservariables in Domoticz accordingly. 
@@ -31,11 +32,12 @@ URL_DOMOTICZ = 'http://192.168.0.20:8080/json.htm?type=command&param=updateuserv
 # mode : 0 for 1 update per status change / 1 continuous updating
 
 TAG_DATA = [  
-			["Tag_white","XX:Xx:XX:xx:xx:xx",15,0,8],
-			["Tag_Orange","xx:xx:78:38:xx:xx",15,0,6],
-			["Tag_Green","xx:xx:60:00:xx:xx",15,0,7]
-			]
+           ["Tag_white","XX:Xx:XX:xx:xx:xx",15,0,8],
+           ["Tag_Orange","xx:xx:xx:38:xx:xx",15,0,6],
+           ["Tag_Green","xx:xx:xx:00:xx:xx",15,0,7]
+           ]
 
+           
 import logging
 
 # choose between DEBUG (log every information) or CRITICAL (almost no log)
@@ -43,7 +45,7 @@ logLevel=logging.DEBUG
 #logLevel=logging.CRITICAL
 
 #logOutFilename='/var/log/check_beacon_presence.log'       # comment this line to console output
-
+ABSENCE_FREQUENCY=5
 ################ Nothing to edit under this line #####################################################################################
 
 
@@ -100,14 +102,15 @@ class CheckAbsenceThread(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
     def run(self):
-            while True:
-                    for tag in TAG_DATA:
-                        elapsed_time_absence=tag[3]-time.time()
-                        if elapsed_time_absence>tag[2] and elapsed_time_absence<2*tag[2]:  #upadte only 1 time in the windows [15sec - 30sec]
-                            logging.debug('Tag %s not seen since %i sec => update absence',tag[0],elapsed_time_absence)
-                            threadReqAway = threading.Thread(target=request_thread,args=(tag[4],"AWAY",tag[0]))
-                            threadReqAway.start()
-                    time.sleep(15)
+
+        while True:
+            time.sleep(ABSENCE_FREQUENCY)
+            for tag in TAG_DATA:
+                elapsed_time_absence=time.time()-tag[3]
+                if elapsed_time_absence>tag[2] and elapsed_time_absence<(tag[2]+ABSENCE_FREQUENCY) :  #update when > timeout ant only 1 time , before the next absence check [>15sec <30sec]
+                    logging.debug('Tag %s not seen since %i sec => update absence',tag[0],elapsed_time_absence)
+                    threadReqAway = threading.Thread(target=request_thread,args=(tag[4],"AWAY",tag[0]))
+                    threadReqAway.start()
 
 devId = 0
 FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -125,6 +128,13 @@ except:
 
 old_filter = sock.getsockopt( bluez.SOL_HCI, bluez.HCI_FILTER, 14)
 hci_toggle_le_scan(sock, 0x01)
+
+
+for tag in TAG_DATA:
+    tag[3]=time.time()
+    
+
+
 
 th=CheckAbsenceThread()
 th.daemon=True
@@ -167,6 +177,8 @@ while True:
                                 if macAdressSeen.lower() == tag[1].lower():  # MAC ADDRESS
                                     logging.debug('It is tag: %s', tag[0])
                                     elapsed_time=int(time.time()-tag[3])  # lastseen
+                                    # if mode = continuous and elapsed_time>2seconde   # continuous mode
+                                    # or mode= not continous and elapsed_time >tag[2] 
                                     if elapsed_time>tag[2]: # >timeout
                                         threadReqHome = threading.Thread(target=request_thread,args=(tag[4],"HOME",tag[0]))
                                         threadReqHome.start()
