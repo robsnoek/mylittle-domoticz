@@ -92,12 +92,7 @@ def request_thread(idx,cmd, name):
         url=url.replace('PARAM_CMD',str(cmd))
         url=url.replace('PARAM_NAME',str(name))
         result = requests.get(url)
-<<<<<<< HEAD
         logging.debug(" %s -> %s" % (threading.current_thread(), result))
-=======
-        # print url
-        #  logging.debug(" %s -> %s" % (threading.current_thread(), result))
->>>>>>> origin/master
     except requests.ConnectionError, e:
         logging.warning(' %s Request Failed %s - %s' % (threading.current_thread(), e, url) )
 
@@ -105,10 +100,7 @@ class CheckAbsenceThread(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
     def run(self):
-#            time_check_absence = time.time()
             while True:
-                #if time.time()>time_check_absence+15 : # check every 15 sec
-                    #time_check_absence=time.time()
                     for tag in TAG_DATA:
                         elapsed_time_absence=tag[3]-time.time()
                         if elapsed_time_absence>tag[2] and elapsed_time_absence<2*tag[2]:  #upadte only 1 time in the windows [15sec - 30sec]
