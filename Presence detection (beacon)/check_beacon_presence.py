@@ -92,7 +92,12 @@ def request_thread(idx,cmd, name):
         url=url.replace('PARAM_CMD',str(cmd))
         url=url.replace('PARAM_NAME',str(name))
         result = requests.get(url)
+<<<<<<< HEAD
         logging.debug(" %s -> %s" % (threading.current_thread(), result))
+=======
+        # print url
+        #  logging.debug(" %s -> %s" % (threading.current_thread(), result))
+>>>>>>> origin/master
     except requests.ConnectionError, e:
         logging.warning(' %s Request Failed %s - %s' % (threading.current_thread(), e, url) )
 
