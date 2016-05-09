@@ -1,14 +1,14 @@
-#! /bin/sh 
-#
-# /etc/init.d/check_beacon_presence
-#
+#! /bin/sh
+# 
 # Author: jmleglise
 # Date : 7 May 2016
 # https://github.com/jmleglise/mylittle-domoticz/tree/master/Presence%20detection%20%28beacon%29
 #
+# /etc/init.d/check_beacon_presence
+#
 ### BEGIN INIT INFO
 # Provides:          check_beacon_presence
-# Required-Start:    
+# Required-Start:
 # Required-Stop:
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
@@ -18,7 +18,7 @@
 
 # This next line determines what user the script runs as.
 # Root generally not recommended but necessary if you are using the Raspberry Pi GPIO from Python.
-DAEMON_USER=pi
+DAEMON_USER=root
 
 PATH=/bin:/usr/bin:/sbin:/usr/sbin
 DAEMON=/usr/local/bin/check_beacon_presence.py
