@@ -10,7 +10,11 @@
 #   Version : 1.3   Log + script takes care of hciconfig + Return the RSSI when detected and "AWAY" otherwise
 #
 # Feature : 
-# When the MACADRESS of the beacons are detected, update DOMOTICZ uservariable with "HOME" if the beacon is in SWITCH_MODE or update the uservariable with the RSSI if REPEAT_MODE is choosen.
+# Script takes care of Bluetooth Adapter. Switch it UP RUNNING.
+# When the MACADRESS of a list of beacons are detected, update DOMOTICZ uservariable.
+# Script operates now in 2 mode. Choose for each beacon witch one you want :
+#       REPEAT MODE : For beacon in range, update the uservariable every 3 secondes with the RSSI. And "AWAY" otherwise.
+#       SWITCH_MODE : For beacon in range, update only 1 time the uservariable with "HOME". And "AWAY" otherwise.
 # Send "AWAY" when the beacons are not in range.
 # The detection is very fast : around 4 secondes. And the absence is verified every 5 seconds by comparing the hour of the last presence with a time out for each beacon.
 #
