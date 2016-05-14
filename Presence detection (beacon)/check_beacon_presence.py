@@ -6,8 +6,9 @@
 #   URL : https://github.com/jmleglise/mylittle-domoticz/edit/master/Presence%20detection%20%28beacon%29/check_beacon_presence.py
 #   Version : 1.0
 #   Version : 1.1   Log + Mac Adress case insensitive 
-#   Version : 1.2   Fix initial state for Tag Away
+#   Version : 1.2   Fix initial AWAY state
 #   Version : 1.3   Log + script takes care of hciconfig + Return the RSSI when detected and "AWAY" otherwise
+#   Version : 1.4   Fix initial HOME state
 #
 # Feature : 
 # Script takes care of Bluetooth Adapter. Switch it UP RUNNING.
@@ -111,15 +112,23 @@ class CheckAbsenceThread(threading.Thread):
         threading.Thread.__init__(self)
     def run(self):
 
+        time.sleep(ABSENCE_FREQUENCY)    
+        for tag in TAG_DATA:
+            elapsed_time_absence=time.time()-tag[3]
+            if elapsed_time_absence>=tag[2] : # sleep execute after the first Home check.
+                logging.debug('Tag %s not seen since %i sec => update absence',tag[0],elapsed_time_absence)
+                threadReqAway = threading.Thread(target=request_thread,args=(tag[4],"AWAY",tag[0]))
+                threadReqAway.start()
+    
         while True:
             time.sleep(ABSENCE_FREQUENCY)
             for tag in TAG_DATA:
                 elapsed_time_absence=time.time()-tag[3]
-                if elapsed_time_absence>tag[2] and elapsed_time_absence<(tag[2]+ABSENCE_FREQUENCY) :  #update when > timeout ant only 1 time , before the next absence check [>15sec <30sec]
+                if elapsed_time_absence>=tag[2] and elapsed_time_absence<(tag[2]+ABSENCE_FREQUENCY) :  #update when > timeout ant only 1 time , before the next absence check [>15sec <30sec]
                     logging.debug('Tag %s not seen since %i sec => update absence',tag[0],elapsed_time_absence)
                     threadReqAway = threading.Thread(target=request_thread,args=(tag[4],"AWAY",tag[0]))
                     threadReqAway.start()
-
+            
 FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 if globals().has_key('logOutFilename') :
     logging.basicConfig(format=FORMAT,filename=logOutFilename,level=logLevel)
@@ -137,7 +146,7 @@ interface = subprocess.Popen(["sudo hciconfig"], stdout=subprocess.PIPE, shell=T
 if "RUNNING" in output: #Check return of hciconfig to make sure it's up
     logging.debug('Ok hci0 interface Up n running !')
 else:
-    logging.critical('Error : hci0 interface not Running. Do you have a BLE dongle connected to hci0 ? Check with hciconfig !')
+    logging.critical('Error : hci0 interface not Running. Do you have a BLE device connected to hci0 ? Check with hciconfig !')
     sys.exit(1)
     
 devId = 0
@@ -152,7 +161,7 @@ old_filter = sock.getsockopt( bluez.SOL_HCI, bluez.HCI_FILTER, 14)
 hci_toggle_le_scan(sock, 0x01)
 
 for tag in TAG_DATA:
-    tag[3]=time.time()
+    tag[3]=time.time()-tag[2]  # initiate lastseen of every beacon "timeout" sec ago. = Every beacon will be AWAY. And so, beacons here will update 
 
 th=CheckAbsenceThread()
 th.daemon=True
@@ -190,18 +199,17 @@ while True:
                             #logging.debug('Unknown:', struct.unpack("b", pkt[report_pkt_offset -2])) # don't know what this byte is.  It's NOT TXPower ?
                             #logging.debug('RSSI: %s', struct.unpack("b", pkt[report_pkt_offset -1])) #  Signal strenght !
                             macAdressSeen=packed_bdaddr_to_string(pkt[report_pkt_offset + 3:report_pkt_offset + 9])
-                            logging.debug('Tag Detected %s - RSSI %s - DATA unknown %s', macAdressSeen, struct.unpack("b", pkt[report_pkt_offset -1]),struct.unpack("b", pkt[report_pkt_offset -2])) #  Signal strenght + unknown (hope it's battery life).
                             for tag in TAG_DATA:
                                 if macAdressSeen.lower() == tag[1].lower():  # MAC ADDRESS
-                                    logging.debug('It is tag: %s', tag[0])
+                                    logging.debug('Tag %s Detected %s - RSSI %s - DATA unknown %s', tag[0], macAdressSeen, struct.unpack("b", pkt[report_pkt_offset -1]),struct.unpack("b", pkt[report_pkt_offset -2])) #  Signal strenght + unknown (hope it's battery life).                                    
                                     elapsed_time=time.time()-tag[3]  # lastseen
-                                    if tag[5]==SWITCH_MODE and elapsed_time>tag[2] : # Upadate after an absence (>timeout). It's back again
-                                        threadReqHome = threading.Thread(target=request_thread,args=(tag[4],"HOME",tag[0]))
+                                    if tag[5]==SWITCH_MODE and elapsed_time>=tag[2] : # Upadate only once : after an absence (>timeout). It's back again
+                                        threadReqHome = threading.Thread(target=request_thread,args=(tag[4],"HOME",tag[0]))  # IDX, RSSI, name
                                         threadReqHome.start()
                                         logging.debug('Tag %s seen after an absence of %i sec : update presence',tag[0],elapsed_time)
                                     elif tag[5]==REPEAT_MODE and elapsed_time>3 : # in continuous, Every 2 sec
                                         rssi=''.join(c for c in str(struct.unpack("b", pkt[report_pkt_offset -1])) if c in '-0123456789')
-                                        threadReqHome = threading.Thread(target=request_thread,args=(tag[4],rssi,tag[0]))
+                                        threadReqHome = threading.Thread(target=request_thread,args=(tag[4],rssi,tag[0]))   # IDX, RSSI, name
                                         threadReqHome.start()
                                         logging.debug('Tag %s is still there with an RSSI of %s  : update presence with RSSI',tag[0],rssi)
                                     tag[3]=time.time()   # update lastseen
