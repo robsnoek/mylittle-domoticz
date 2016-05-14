@@ -1,17 +1,18 @@
 #!/usr/bin/python
 #   File : check_beacon_presence.py
 #   Author: jmleglise
-#   Date: 06-May-2016
-#   Info: Beacon (BlueTooth Low Energy V4.0) detection and reports back to domoticz
+#   Date: 14-May-2016
+#   Description : Check the presence of a list of beacon (BlueTooth Low Energy V4.0) and update uservariables in Domoticz accordingly. 
 #   URL : https://github.com/jmleglise/mylittle-domoticz/edit/master/Presence%20detection%20%28beacon%29/check_beacon_presence.py
 #   Version : 1.0
 #   Version : 1.1   Log + Mac Adress case insensitive 
 #   Version : 1.2   Fix initial state for Tag Away
+#   Version : 1.3   Log + script takes care of hciconfig + Return the RSSI when detected and "AWAY" otherwise
 #
 # Feature : 
-# Check the presence of a list of beacon and update uservariables in Domoticz accordingly. 
-# When the MACADRESS of the beacons are detected, send "HOME". And send "AWAY" when the beacons are not in range.
-# The detection is very fast : around 4 secondes. And the absence is verified every 15 seconds by comparing the hour of the last presence.
+# When the MACADRESS of the beacons are detected, update DOMOTICZ uservariable with "HOME" if the beacon is in SWITCH_MODE or update the uservariable with the RSSI if REPEAT_MODE is choosen.
+# Send "AWAY" when the beacons are not in range.
+# The detection is very fast : around 4 secondes. And the absence is verified every 5 seconds by comparing the hour of the last presence with a time out for each beacon.
 #
 # References :
 # https://wiki.tizen.org/wiki/Bluetooth
@@ -20,36 +21,40 @@
 # Required in Domoticz : An uservariable of type String for each BLE Tag
 #
 # Configuration :
-# Change your IP and Port here :
-URL_DOMOTICZ = 'http://192.168.0.20:8080/json.htm?type=command&param=updateuservariable&idx=PARAM_IDX&vname=PARAM_NAME&vtype=2&vvalue=PARAM_CMD'
+# Change your IP and Port here :  (I use Localhost)
+URL_DOMOTICZ = 'http://localhost:8080/json.htm?type=command&param=updateuservariable&idx=PARAM_IDX&vname=PARAM_NAME&vtype=2&vvalue=PARAM_CMD'
+
+REPEAT_MODE=1
+SWITCH_MODE=0
+
 #
-# Configure your Beacon here : 
-# [Name,MacAddress,Timeout,0,idx,mode]
-# Name : same as the uservariable in Domoticz
+# Configure your Beacons in the TAG_DATA table with : [Name,MacAddress,Timeout,0,idx,mode]
+# Name : the name of the uservariable used in Domoticz
+# macAddress : case insensitive
 # Timeout is in secondes the elapsed time  without a detetion for switching the beacon AWAY. Ie :if your beacon emits every 3 to 8 seondes, a timeout of 15 secondes seems good.
 # 0 : used by the script (will keep the time of the last broadcast) 
 # idx of the uservariable in Domoticz for this beacon
-# mode : 0 for 1 update per status change / 1 continuous updating
+# mode : SWITCH_MODE = One update per status change / REPEAT_MODE = continuous updating the RSSI every 3 secondes
 
 TAG_DATA = [  
-           ["Tag_white","XX:Xx:XX:xx:xx:xx",15,0,8],
-           ["Tag_Orange","xx:xx:xx:38:xx:xx",15,0,6],
-           ["Tag_Green","xx:xx:xx:00:xx:xx",15,0,7]
+            ["Tag_Orange","Fb:14:78:38:18:5e",15,0,6,REPEAT_MODE],
+            ["Tag_Green","ff:ff:60:00:22:ae",15,0,7,REPEAT_MODE]
            ]
 
            
 import logging
 
-# choose between DEBUG (log every information) or CRITICAL (almost no log)
+# choose between DEBUG (log every information) or CRITICAL (only error)
 logLevel=logging.DEBUG
 #logLevel=logging.CRITICAL
 
-#logOutFilename='/var/log/check_beacon_presence.log'       # comment this line to console output
-ABSENCE_FREQUENCY=5
+#logOutFilename='/var/log/check_beacon_presence.log'       # output LOG : File or console (comment this line to console output)
+ABSENCE_FREQUENCY=5  # frequency of the test of absence. in seconde. (without detection, switch "AWAY".
+
 ################ Nothing to edit under this line #####################################################################################
 
-
 import os
+import subprocess
 import sys
 import struct
 import bluetooth._bluetooth as bluez
@@ -57,7 +62,6 @@ import time
 import requests
 import signal
 import threading
-
 
 
 LE_META_EVENT = 0x3e
@@ -96,7 +100,7 @@ def request_thread(idx,cmd, name):
         result = requests.get(url)
         logging.debug(" %s -> %s" % (threading.current_thread(), result))
     except requests.ConnectionError, e:
-        logging.warning(' %s Request Failed %s - %s' % (threading.current_thread(), e, url) )
+        logging.critical(' %s Request Failed %s - %s' % (threading.current_thread(), e, url) )
 
 class CheckAbsenceThread(threading.Thread):
     def __init__(self):
@@ -112,29 +116,39 @@ class CheckAbsenceThread(threading.Thread):
                     threadReqAway = threading.Thread(target=request_thread,args=(tag[4],"AWAY",tag[0]))
                     threadReqAway.start()
 
-devId = 0
 FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 if globals().has_key('logOutFilename') :
     logging.basicConfig(format=FORMAT,filename=logOutFilename,level=logLevel)
 else:
     logging.basicConfig(format=FORMAT,level=logLevel)
 
+#Reset Bluetooth interface, hci0
+os.system("sudo hciconfig hci0 down")
+os.system("sudo hciconfig hci0 up")
+
+#Make sure device is up
+interface = subprocess.Popen(["sudo hciconfig"], stdout=subprocess.PIPE, shell=True)
+(output, err) = interface.communicate()
+
+if "RUNNING" in output: #Check return of hciconfig to make sure it's up
+    logging.debug('Ok hci0 interface Up n running !')
+else:
+    logging.critical('Error : hci0 interface not Running. Do you have a BLE dongle connected to hci0 ? Check with hciconfig !')
+    sys.exit(1)
+    
+devId = 0
 try:
     sock = bluez.hci_open_dev(devId)
-    logging.info('Connect to bluetooth device %i',devId)
+    logging.debug('Connect to bluetooth device %i',devId)
 except:
-    logging.debug('Unable to connect to bluetooth device...')
+    logging.critical('Unable to connect to bluetooth device...')
     sys.exit(1)
 
 old_filter = sock.getsockopt( bluez.SOL_HCI, bluez.HCI_FILTER, 14)
 hci_toggle_le_scan(sock, 0x01)
 
-
 for tag in TAG_DATA:
     tag[3]=time.time()
-    
-
-
 
 th=CheckAbsenceThread()
 th.daemon=True
@@ -172,17 +186,20 @@ while True:
                             #logging.debug('Unknown:', struct.unpack("b", pkt[report_pkt_offset -2])) # don't know what this byte is.  It's NOT TXPower ?
                             #logging.debug('RSSI: %s', struct.unpack("b", pkt[report_pkt_offset -1])) #  Signal strenght !
                             macAdressSeen=packed_bdaddr_to_string(pkt[report_pkt_offset + 3:report_pkt_offset + 9])
-                            logging.debug('Tag Detected %s - RSSI %s - DATA %s', macAdressSeen, struct.unpack("b", pkt[report_pkt_offset -1]),struct.unpack("b", pkt[report_pkt_offset -2])) #  Signal strenght !
+                            logging.debug('Tag Detected %s - RSSI %s - DATA unknown %s', macAdressSeen, struct.unpack("b", pkt[report_pkt_offset -1]),struct.unpack("b", pkt[report_pkt_offset -2])) #  Signal strenght + unknown (hope it's battery life).
                             for tag in TAG_DATA:
                                 if macAdressSeen.lower() == tag[1].lower():  # MAC ADDRESS
                                     logging.debug('It is tag: %s', tag[0])
-                                    elapsed_time=int(time.time()-tag[3])  # lastseen
-                                    # if mode = continuous and elapsed_time>2seconde   # continuous mode
-                                    # or mode= not continous and elapsed_time >tag[2] 
-                                    if elapsed_time>tag[2]: # >timeout
+                                    elapsed_time=time.time()-tag[3]  # lastseen
+                                    if tag[5]==SWITCH_MODE and elapsed_time>tag[2] : # Upadate after an absence (>timeout). It's back again
                                         threadReqHome = threading.Thread(target=request_thread,args=(tag[4],"HOME",tag[0]))
                                         threadReqHome.start()
                                         logging.debug('Tag %s seen after an absence of %i sec : update presence',tag[0],elapsed_time)
+                                    elif tag[5]==REPEAT_MODE and elapsed_time>3 : # in continuous, Every 2 sec
+                                        rssi=''.join(c for c in str(struct.unpack("b", pkt[report_pkt_offset -1])) if c in '-0123456789')
+                                        threadReqHome = threading.Thread(target=request_thread,args=(tag[4],rssi,tag[0]))
+                                        threadReqHome.start()
+                                        logging.debug('Tag %s is still there with an RSSI of %s  : update presence with RSSI',tag[0],rssi)
                                     tag[3]=time.time()   # update lastseen
                                     
     sock.setsockopt( bluez.SOL_HCI, bluez.HCI_FILTER, old_filter )
