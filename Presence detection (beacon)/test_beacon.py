@@ -3,7 +3,7 @@
 #   Author: jmleglise
 #   Date: 25-May-2016
 #   Description : Test yours beacon 
-#   URL : https://github.com/jmleglise/mylittle-domoticz/edit/master/Presence%20detection%20%28beacon%29/check_beacon_presence.py
+#   URL : https://github.com/jmleglise/mylittle-domoticz/edit/master/Presence%20detection%20%28beacon%29/test_beacon.py
 #   Version : 1.0
 #
 
