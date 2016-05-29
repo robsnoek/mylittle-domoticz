@@ -12,8 +12,7 @@
 # Required-Stop:
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
-# Short-Description: This daemon manages the bluetooth low energy device detector : check_beacon_presence
-# Description:       Check the presence of a list of beacon and send HTTP request to Domoticz to update uservariables accordingly.
+# Short-Description: This daemon manages the bluetooth low energy device detector : check_beacon_presence.py
 ### END INIT INFO
 
 # This next line determines what user the script runs as.
